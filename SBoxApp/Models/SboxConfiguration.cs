@@ -29,11 +29,11 @@ public class SboxConfiguration
 
     [Required]
     [Display(Name = "Server Address")]
-    public string ServerHost { get; set; } = "127.0.0.1";
+    public string ServerHost { get; set; } = "192.168.1.235";
 
     [Range(1, 65535)]
     [Display(Name = "Server Port")]
-    public int ServerPort { get; set; } = 50505;
+    public int ServerPort { get; set; } = 50500;
 
     public SboxConfiguration Clone() => new()
     {
