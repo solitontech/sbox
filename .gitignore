@@ -1,0 +1,46 @@
+# Build outputs
+**/bin/
+**/obj/
+*.user
+*.userosscache
+*.suo
+*.cache
+*.dbmdl
+
+# Visual Studio
+.vs/
+*.VC.db
+*.VC.opendb
+
+# MAUI/Windows artifacts
+SBoxApp/Platforms/Windows/AppPackages/
+SBoxApp/Platforms/Windows/bin/
+SBoxApp/Platforms/Windows/obj/
+SBoxApp/Platforms/Android/bin/
+SBoxApp/Platforms/Android/obj/
+SBoxApp/Platforms/iOS/bin/
+SBoxApp/Platforms/iOS/obj/
+SBoxApp/Platforms/MacCatalyst/bin/
+SBoxApp/Platforms/MacCatalyst/obj/
+
+# Generated publish artifacts
+dist/
+
+# Logs / temporary
+*.log
+*.tlog
+.temp/
+temp/
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# Packaging
+*.msix
+*.appx
+*.zip
+
+# Tooling caches
+.sonarqube/
+.scannerwork/

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+    <rect width="512" height="512" rx="48" fill="#05071A"/>
+    <g transform="translate(0,30)">
+        <polygon points="256,80 381,150 256,220 131,150" fill="#A8B4FF"/>
+        <polygon points="131,150 131,330 256,400 256,220" fill="#16162E"/>
+        <polygon points="256,220 381,150 381,330 256,400" fill="#542BFF"/>
+        <clipPath id="right-face-clip">
+            <polygon points="256,220 381,150 381,330 256,400"/>
+        </clipPath>
+        <g clip-path="url(#right-face-clip)">
+            <text x="318" y="330" font-family="Segoe UI, Montserrat, 'Gill Sans', sans-serif" font-size="150" font-weight="700" fill="#FFFFFF" text-anchor="middle">S</text>
+        </g>
+    </g>
+</svg>

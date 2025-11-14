@@ -1,0 +1,95 @@
+@page "/logs"
+@implements IDisposable
+@inject SboxStateStore StateStore
+@inject IJSRuntime Js
+
+<section class="card">
+    <div class="card-header">
+        <div>
+            <p class="tile-label">Logs</p>
+            <h1 class="card-title">Live Event Stream</h1>
+        </div>
+        <div class="form-actions">
+            <button class="btn btn-outline" type="button" @onclick="ClearAsync">Clear</button>
+            <label class="toggle">
+                <InputCheckbox @bind-Value="_autoScroll" />
+                <span>Auto scroll</span>
+            </label>
+        </div>
+    </div>
+
+    <div class="logs-panel" @ref="_logContainer">
+        @if (_logs.Count == 0)
+        {
+            <p class="helper-text">No log entries yet.</p>
+        }
+        else
+        {
+            @foreach (var entry in _logs)
+            {
+                <div class="log-entry">
+                    <div>@entry.FormattedTimestamp</div>
+                    <div>
+                        <span class="@GetLogClass(entry.Level)">@entry.Level</span>
+                        <div class="log-source">@entry.Source</div>
+                    </div>
+                    <div>@entry.Message</div>
+                </div>
+            }
+        }
+    </div>
+</section>
+
+@code {
+    private List<LogEntry> _logs = new();
+    private bool _autoScroll = true;
+    private ElementReference _logContainer;
+    private bool _pendingScroll;
+
+    protected override void OnInitialized()
+    {
+        _logs = StateStore.Snapshot.Logs.ToList();
+        StateStore.StateChanged += HandleStateChanged;
+    }
+
+    private void HandleStateChanged()
+    {
+        _logs = StateStore.Snapshot.Logs.ToList();
+        _pendingScroll = true;
+        InvokeAsync(StateHasChanged);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_pendingScroll && _autoScroll)
+        {
+            _pendingScroll = false;
+            try
+            {
+                await Js.InvokeVoidAsync("sbox.scrollToEnd", _logContainer);
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+    }
+
+    private string GetLogClass(LogLevel level) => level switch
+    {
+        LogLevel.Warning => "log-level-warning",
+        LogLevel.Error or LogLevel.Critical => "log-level-error",
+        _ => "log-level-info"
+    };
+
+    private Task ClearAsync()
+    {
+        StateStore.ClearLogs();
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        StateStore.StateChanged -= HandleStateChanged;
+    }
+}

@@ -1,0 +1,127 @@
+@page "/"
+@implements IDisposable
+@inject SboxStateStore StateStore
+@inject SboxService Runtime
+
+<section class="card">
+    <div class="card-header">
+        <div>
+            <h1 class="card-title">Orchestrator Runtime</h1>
+        </div>
+        <button class="@($"btn {(IsRunning ? "btn-outline" : "btn-primary")}")" disabled="@_isBusy" @onclick="ToggleRuntimeAsync">
+            @(IsRunning ? "Stop SBOX" : "Start SBOX")
+        </button>
+    </div>
+
+    <div class="status-grid">
+        <div class="status-tile">
+            <span class="tile-label">Bot Gateway</span>
+            <span class="@GetStateClass(_state.BotConnection) state-chip">@_state.BotConnection.ToString()</span>
+            <p class="tile-detail">@_state.BotDetail</p>
+        </div>
+        <div class="status-tile">
+            <span class="tile-label">Server</span>
+            <span class="@GetStateClass(_state.ServerConnection) state-chip">@_state.ServerConnection.ToString()</span>
+            <p class="tile-detail">@_state.ServerDetail</p>
+        </div>
+        <div class="status-tile">
+            <span class="tile-label">Game Engine</span>
+            <span class="@GetStateClass(_state.GameEngineConnection) state-chip">@_state.GameEngineConnection.ToString()</span>
+            <p class="tile-detail">@_state.GameEngineDetail</p>
+        </div>
+    </div>
+</section>
+
+<section class="card">
+    <div class="card-header">
+        <div>
+            <p class="tile-label">Team</p>
+            <h2 class="card-title">@DisplayOrFallback(_state.TeamName, "Team not registered")</h2>
+        </div>
+        <div class="status-badge">
+            <span>Team ID</span>
+            <strong>@DisplayOrFallback(_state.TeamId, "--")</strong>
+        </div>
+    </div>
+
+    <div class="session-grid">
+        <dl>
+            <dt>Playing In</dt>
+            <dd>@DisplayOrFallback(_state.Session.RoomName, "--")</dd>
+        </dl>
+        <dl>
+            <dt>Game Name</dt>
+            <dd>@DisplayOrFallback(_state.Session.GameName, "--")</dd>
+        </dl>
+        <dl>
+            <dt>Engine Endpoint</dt>
+            <dd>@DisplayOrFallback(_state.Session.EngineAddress, "--")</dd>
+        </dl>
+        <dl>
+            <dt>Joined At</dt>
+            <dd>@(_state.Session.JoinedAt?.ToLocalTime().ToString("g") ?? "--")</dd>
+        </dl>
+    </div>
+</section>
+
+@code {
+    private SboxStateSnapshot _state = SboxStateSnapshot.Empty;
+    private bool _isBusy;
+
+    private bool IsRunning => _state.IsRunning;
+
+    protected override void OnInitialized()
+    {
+        _state = StateStore.Snapshot;
+        StateStore.StateChanged += HandleStateChanged;
+    }
+
+    private async Task ToggleRuntimeAsync()
+    {
+        if (_isBusy)
+        {
+            return;
+        }
+
+        _isBusy = true;
+        try
+        {
+            if (IsRunning)
+            {
+                await Runtime.StopAsync();
+            }
+            else
+            {
+                await Runtime.StartAsync();
+            }
+        }
+        finally
+        {
+            _isBusy = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void HandleStateChanged()
+    {
+        _state = StateStore.Snapshot;
+        InvokeAsync(StateHasChanged);
+    }
+
+    private static string DisplayOrFallback(string? value, string fallback) =>
+        string.IsNullOrWhiteSpace(value) || value == "--" ? fallback : value!;
+
+    private static string GetStateClass(ConnectionState state) => state switch
+    {
+        ConnectionState.Online => "state-online",
+        ConnectionState.Starting => "state-starting",
+        ConnectionState.Connecting => "state-connecting",
+        ConnectionState.Error => "state-error",
+        _ => "state-offline"
+    };
+
+    public void Dispose()
+    {
+        StateStore.StateChanged -= HandleStateChanged;
+    }
+}

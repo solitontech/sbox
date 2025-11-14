@@ -1,0 +1,21 @@
+@inherits LayoutComponentBase
+
+<div class="app-shell">
+    <header class="app-header">
+        <div class="brand">
+            <img src="images/logo.svg" alt="Soliton SBOX logo" class="brand-logo" />
+            <div class="brand-text">
+                <span class="brand-title">SBOX</span>
+                <span class="brand-subtitle">Soliton Technologies</span>
+            </div>
+        </div>
+        <nav class="main-nav">
+            <NavLink class="nav-link" href="/" Match="NavLinkMatch.All">Home</NavLink>
+            <NavLink class="nav-link" href="/settings">Settings</NavLink>
+            <NavLink class="nav-link" href="/logs">Logs</NavLink>
+        </nav>
+    </header>
+    <main class="app-main">
+        @Body
+    </main>
+</div>

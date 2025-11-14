@@ -1,0 +1,141 @@
+@page "/settings"
+@inject SboxConfigurationStore ConfigurationStore
+@inject SboxService Runtime
+@inject SboxStateStore StateStore
+
+<section class="card">
+    <div class="card-header">
+        <div>
+            <p class="tile-label">Settings</p>
+            <h1 class="card-title">Connection & Credentials</h1>
+        </div>
+        <div class="status-badge">
+            <span>Runtime</span>
+            <strong>@(StateStore.Snapshot.IsRunning ? "Active" : "Stopped")</strong>
+        </div>
+    </div>
+
+    <EditForm Model="_model" OnValidSubmit="HandleSaveAsync" class="settings-form">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="field-grid">
+            <div class="field-group">
+                <label for="email">Player Email</label>
+                <InputText id="email" @bind-Value="_model.PlayerEmail" type="email" />
+                <ValidationMessage For="@(() => _model.PlayerEmail)" />
+            </div>
+            <div class="field-group">
+                <label for="apiKey">SPL API Key</label>
+                <InputText id="apiKey" @bind-Value="_model.ApiKey" />
+                <ValidationMessage For="@(() => _model.ApiKey)" />
+            </div>
+            <div class="field-group">
+                <label for="teamId">Team Id (optional)</label>
+                <InputText id="teamId" @bind-Value="_model.TeamId" />
+            </div>
+        </div>
+
+        <div>
+            <p class="tile-label">Bot Gateway</p>
+            <div class="field-grid">
+                <div class="field-group">
+                    <label for="botHost">IP Address</label>
+                    <InputText id="botHost" @bind-Value="_model.BotHost" />
+                    <ValidationMessage For="@(() => _model.BotHost)" />
+                </div>
+                <div class="field-group">
+                    <label for="botPort">Port</label>
+                    <InputNumber id="botPort" @bind-Value="_model.BotPort" />
+                    <ValidationMessage For="@(() => _model.BotPort)" />
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <p class="tile-label">Server</p>
+            <div class="field-grid">
+                <div class="field-group">
+                    <label for="serverHost">IP Address</label>
+                    <InputText id="serverHost" @bind-Value="_model.ServerHost" />
+                    <ValidationMessage For="@(() => _model.ServerHost)" />
+                </div>
+                <div class="field-group">
+                    <label for="serverPort">Port</label>
+                    <InputNumber id="serverPort" @bind-Value="_model.ServerPort" />
+                    <ValidationMessage For="@(() => _model.ServerPort)" />
+                </div>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button class="btn btn-primary" type="submit" disabled="@_isSaving">
+                @_buttonText
+            </button>
+            <button class="btn btn-outline" type="button" disabled="@_isSaving" @onclick="ResetAsync">Reset</button>
+            <span class="helper-text">@_statusMessage</span>
+        </div>
+    </EditForm>
+
+    @if (!string.IsNullOrWhiteSpace(_alertMessage))
+    {
+        <div class="message-banner @(_alertIsError ? "error" : string.Empty)">
+            @_alertMessage
+        </div>
+    }
+</section>
+
+@code {
+    private SboxConfiguration _model = new();
+    private bool _isSaving;
+    private string _buttonText => _isSaving ? "Saving..." : "Save & Apply";
+    private string? _statusMessage;
+    private string? _alertMessage;
+    private bool _alertIsError;
+
+    protected override void OnInitialized()
+    {
+        _model = ConfigurationStore.GetSnapshot();
+    }
+
+    private async Task HandleSaveAsync()
+    {
+        if (_isSaving)
+        {
+            return;
+        }
+
+        _isSaving = true;
+        _alertMessage = null;
+        _statusMessage = StateStore.Snapshot.IsRunning ? "Applying & restarting runtime..." : "Saving...";
+
+        try
+        {
+            await ConfigurationStore.SaveAsync(_model);
+            if (StateStore.Snapshot.IsRunning)
+            {
+                await Runtime.RestartAsync();
+            }
+            _alertMessage = "Configuration saved successfully.";
+            _alertIsError = false;
+        }
+        catch (Exception ex)
+        {
+            _alertMessage = $"Failed to save settings: {ex.Message}";
+            _alertIsError = true;
+        }
+        finally
+        {
+            _isSaving = false;
+            _statusMessage = null;
+        }
+    }
+
+    private async Task ResetAsync()
+    {
+        _model = ConfigurationStore.GetSnapshot();
+        _alertMessage = null;
+        _statusMessage = "Reverted changes.";
+        await InvokeAsync(StateHasChanged);
+    }
+}
