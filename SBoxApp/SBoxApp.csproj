@@ -39,6 +39,12 @@
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'tizen'">6.5</SupportedOSPlatformVersion>
     </PropertyGroup>
 
+    <PropertyGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">
+        <PackageCertificateKeyFile>$(MSBuildThisFileDirectory)certificates\SolitonSBOX.pfx</PackageCertificateKeyFile>
+        <PackageCertificatePassword>SolitonTemp123!</PackageCertificatePassword>
+        <PackageCertificateThumbprint>55607BEEF0EBF154AFCAA7D27EC7E06E4063F35E</PackageCertificateThumbprint>
+    </PropertyGroup>
+
     <ItemGroup>
         <!-- App Icon -->
         <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#0b1120" />
@@ -55,6 +61,8 @@
 
         <!-- Raw Assets (also remove the "Resources\Raw" prefix) -->
         <MauiAsset Include="Resources\Raw\**" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
+        <None Include="certificates\SolitonSBOX.pfx" Pack="false" Visible="false" />
+        <None Include="certificates\SolitonSBOX.cer" Pack="false" Visible="false" />
     </ItemGroup>
 
     <ItemGroup>

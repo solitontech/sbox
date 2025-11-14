@@ -11,6 +11,8 @@ $distRoot = Join-Path $repoRoot "dist\windows"
 $publishDir = Join-Path $distRoot "publish"
 $artifactName = "SolitonSBOX-$Runtime.zip"
 $artifactPath = Join-Path $distRoot $artifactName
+$pfxPath = Join-Path $repoRoot "certificates\SolitonSBOX.pfx"
+$pfxPassword = "SolitonTemp123!"
 
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     Write-Error "dotnet SDK not found. Install .NET 8 SDK from https://dotnet.microsoft.com/download and rerun the script."
@@ -48,6 +50,7 @@ Write-Host "Windows publish output zipped at $artifactPath"
 $appPackages = Join-Path (Join-Path $repoRoot "SBoxApp") "bin\$Configuration\net8.0-windows10.0.19041.0\win10-x64\AppPackages"
 if (Test-Path $appPackages) {
     $msix = Get-ChildItem -Path $appPackages -Filter *.msix -Recurse | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    $cert = Get-ChildItem -Path $appPackages -Filter *.cer -Recurse | Sort-Object LastWriteTime -Descending | Select-Object -First 1
     if ($msix) {
         $msixDest = Join-Path $distRoot $msix.Name
         Copy-Item $msix.FullName $msixDest -Force
@@ -59,6 +62,23 @@ if (Test-Path $appPackages) {
 }
 else {
     Write-Warning "AppPackages directory not found ($appPackages)"
+}
+
+if (-not $cert) {
+    $fallbackCert = Join-Path $repoRoot "SBoxApp\certificates\SolitonSBOX.cer"
+    if (Test-Path $fallbackCert) {
+        $cert = Get-Item $fallbackCert
+    }
+}
+
+if ($cert) {
+    $certDest = Join-Path $distRoot $cert.Name
+    Copy-Item $cert.FullName $certDest -Force
+    Write-Host "Certificate copied to $certDest"
+    Write-Host "Install the certificate into 'Local Machine -> Trusted People' and 'Local Machine -> Trusted Root Certification Authorities' before installing the MSIX."
+}
+else {
+    Write-Warning "No certificate (.cer) file found in AppPackages."
 }
 
 Write-Host "Windows artifacts generated."
