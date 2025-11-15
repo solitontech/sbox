@@ -133,9 +133,9 @@
 
     private async Task ResetAsync()
     {
-        _model = ConfigurationStore.GetSnapshot();
+        _model = new SboxConfiguration();
         _alertMessage = null;
-        _statusMessage = "Reverted changes.";
+        _statusMessage = "Reverted to defaults. Click Save & Apply to persist.";
         await InvokeAsync(StateHasChanged);
     }
 }

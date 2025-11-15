@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -117,6 +119,8 @@ public sealed class SboxService : IAsyncDisposable
 
     private Task StartBotGatewayAsync(SboxConfiguration configuration, CancellationToken token)
     {
+        EnsurePortAvailable(configuration.BotHost, configuration.BotPort);
+
         var endpoint = $"ws://{configuration.BotHost}:{configuration.BotPort}";
         var server = new WebSocketServer(endpoint)
         {
@@ -144,6 +148,26 @@ public sealed class SboxService : IAsyncDisposable
         _botGateway = server;
         _stateStore.AddLog(LogLevel.Information, "Runtime", $"Bot gateway listening on {endpoint}");
         return Task.CompletedTask;
+    }
+
+    private void EnsurePortAvailable(string host, int port)
+    {
+        try
+        {
+            var address = string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+                ? IPAddress.Loopback
+                : IPAddress.Parse(host);
+
+            using var listener = new TcpListener(address, port);
+            listener.Start();
+        }
+        catch (Exception ex)
+        {
+            var message = $"Unable to bind to {host}:{port} - {ex.Message}";
+            _logger.LogError(ex, "Bot gateway port unavailable: {Host}:{Port}", host, port);
+            _stateStore.AddLog(LogLevel.Error, "Runtime", message);
+            throw new InvalidOperationException(message, ex);
+        }
     }
 
     private void OnBotConnected(IWebSocketConnection connection)
