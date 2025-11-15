@@ -41,7 +41,6 @@ dotnet publish "${PROJECT}" \
     -f net8.0-maccatalyst \
     -r "${RUNTIME}" \
     -c "${CONFIGURATION}" \
-    -p:UseAppHost=true \
     -o "${PUBLISH_DIR}"
 
 (
