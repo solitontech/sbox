@@ -71,12 +71,24 @@ public sealed class SboxService : IAsyncDisposable
             _logger.LogError(ex, "SBOX failed to start");
             _stateStore.AddLog(LogLevel.Error, "Runtime", $"Failed to start: {ex.Message}");
             await StopAsync();
+            await ResetStateAsync();
             throw;
         }
         finally
         {
             _lifecycleGate.Release();
         }
+    }
+
+    private Task ResetStateAsync()
+    {
+        _stateStore.SetIsRunning(false);
+        _stateStore.UpdateTeamProfile(string.Empty, string.Empty);
+        _stateStore.UpdateBotState(ConnectionState.Offline, "Idle");
+        _stateStore.UpdateServerState(ConnectionState.Offline, "Idle");
+        _stateStore.UpdateEngineState(ConnectionState.Offline, "Idle");
+        _stateStore.UpdateSession(new GameSessionSnapshot("--", "--", "--", null));
+        return Task.CompletedTask;
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
