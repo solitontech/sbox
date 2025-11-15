@@ -17,9 +17,14 @@ public sealed record JoinRoomPayload(
 }
 
 public sealed record JoinRoomResponsePayload(
-    string RoomName,
-    bool Joined,
-    string Comment);
+    [property: JsonPropertyName("RoomName")] string RoomName,
+    [property: JsonPropertyName("Joined")] bool Joined,
+    [property: JsonPropertyName("Comment")] string Comment);
+
+public sealed record LeaveRoomResponsePayload(
+    [property: JsonPropertyName("RoomName")] string RoomName,
+    [property: JsonPropertyName("Left")] bool Left,
+    [property: JsonPropertyName("Comment")] string Comment);
 
 public sealed record RegistrationRequest(
     [property: JsonPropertyName("team_id")] string TeamId,

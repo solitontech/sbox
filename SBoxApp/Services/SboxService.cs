@@ -34,6 +34,8 @@ public sealed class SboxService : IAsyncDisposable
     private Task? _serverListenerTask;
     private Task? _engineListenerTask;
     private SboxConfiguration? _activeConfiguration;
+    private string? _currentRoomName;
+    private string? _currentGameName;
 
     public SboxService(SboxConfigurationStore configurationStore, SboxStateStore stateStore, ILogger<SboxService> logger)
     {
@@ -220,7 +222,7 @@ public sealed class SboxService : IAsyncDisposable
         _botConnection = null;
         _stateStore.UpdateBotState(ConnectionState.Offline, "Bot disconnected");
         _stateStore.AddLog(LogLevel.Warning, "Bot", "Bot disconnected");
-        await StopGameEngineAsync("Bot offline", CancellationToken.None, notifyServer: false);
+        await StopGameEngineAsync("Bot offline", CancellationToken.None);
         await StopServerAsync(CancellationToken.None);
     }
 
@@ -390,10 +392,8 @@ public sealed class SboxService : IAsyncDisposable
         }
 
         var success = await StartGameEngineAsync(payload, token);
-        if (envelope.ResponseRequired)
-        {
-            await SendJoinRoomResponseAsync(payload, success, success ? string.Empty : "Connection refused", token);
-        }
+        var comment = success ? string.Empty : "Connection refused";
+        await SendJoinRoomResponseAsync(payload, success, comment, token);
     }
 
     private async Task<bool> StartGameEngineAsync(JoinRoomPayload payload, CancellationToken token)
@@ -403,7 +403,7 @@ public sealed class SboxService : IAsyncDisposable
             return false;
         }
 
-        await StopGameEngineAsync("Switching engine", token, notifyServer: false);
+        await StopGameEngineAsync("Switching engine", token);
 
         var client = new ClientWebSocket();
         var uri = BuildUri(payload.IP_Addr, payload.PortNumber, secure: false);
@@ -442,6 +442,8 @@ public sealed class SboxService : IAsyncDisposable
         _stateStore.UpdateEngineState(ConnectionState.Online, $"Joined {payload.RoomName}");
         _stateStore.UpdateSession(new GameSessionSnapshot(payload.RoomName, payload.GameName, payload.EngineAddress, DateTimeOffset.UtcNow));
         _stateStore.AddLog(LogLevel.Information, "Engine", $"Joined {payload.RoomName}");
+        _currentRoomName = payload.RoomName;
+        _currentGameName = payload.GameName;
 
         _gameEngineSocket = client;
         _engineListenerTask = Task.Run(() => ListenToGameEngineAsync(client, token), token);
@@ -475,7 +477,10 @@ public sealed class SboxService : IAsyncDisposable
         finally
         {
             _stateStore.UpdateEngineState(ConnectionState.Offline, "Disconnected");
-            await StopGameEngineAsync("Engine disconnected", CancellationToken.None, notifyServer: false);
+            if (ReferenceEquals(_gameEngineSocket, socket))
+            {
+                await StopGameEngineAsync("Engine disconnected", CancellationToken.None);
+            }
         }
     }
 
@@ -571,28 +576,34 @@ public sealed class SboxService : IAsyncDisposable
         }
     }
 
-    private async Task StopGameEngineAsync(string reason, CancellationToken cancellationToken, bool notifyServer = true)
+    private async Task StopGameEngineAsync(string reason, CancellationToken cancellationToken)
     {
-        if (_gameEngineSocket == null)
+        var comment = string.IsNullOrWhiteSpace(reason) ? "Session ended" : reason;
+        var roomName = _currentRoomName;
+
+        var socket = Interlocked.Exchange(ref _gameEngineSocket, null);
+        if (socket == null)
         {
-            _stateStore.UpdateEngineState(ConnectionState.Offline, reason);
+            _stateStore.UpdateEngineState(ConnectionState.Offline, comment);
             _stateStore.UpdateSession(new GameSessionSnapshot("--", "--", "--", null));
             if (!string.IsNullOrWhiteSpace(reason))
             {
                 _stateStore.AddLog(LogLevel.Information, "Engine", reason);
             }
-            if (notifyServer)
+            if (!string.IsNullOrWhiteSpace(roomName))
             {
-                _ = SendLeaveAckAsync(reason);
+                _ = SendLeaveAckAsync(roomName, comment);
             }
+            _currentRoomName = null;
+            _currentGameName = null;
             return;
         }
 
         try
         {
-            if (_gameEngineSocket.State == WebSocketState.Open)
+            if (socket.State == WebSocketState.Open)
             {
-                await _gameEngineSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, reason, cancellationToken);
+                await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, reason, cancellationToken);
             }
         }
         catch
@@ -600,18 +611,19 @@ public sealed class SboxService : IAsyncDisposable
         }
         finally
         {
-            _gameEngineSocket.Dispose();
-            _gameEngineSocket = null;
-            _stateStore.UpdateEngineState(ConnectionState.Offline, reason);
+            socket.Dispose();
+            _stateStore.UpdateEngineState(ConnectionState.Offline, comment);
             _stateStore.UpdateSession(new GameSessionSnapshot("--", "--", "--", null));
             if (!string.IsNullOrWhiteSpace(reason))
             {
                 _stateStore.AddLog(LogLevel.Information, "Engine", reason);
             }
-            if (notifyServer)
+            if (!string.IsNullOrWhiteSpace(roomName))
             {
-                _ = SendLeaveAckAsync(reason);
+                _ = SendLeaveAckAsync(roomName, comment);
             }
+            _currentRoomName = null;
+            _currentGameName = null;
         }
     }
 
@@ -631,7 +643,7 @@ public sealed class SboxService : IAsyncDisposable
         _stateStore.AddLog(LogLevel.Information, "Server", $"Join response sent ({(success ? "success" : "failure")})");
     }
 
-    private Task SendLeaveAckAsync(string reason)
+    private Task SendLeaveAckAsync(string roomName, string comment)
     {
         var socket = _serverSocket;
         if (socket == null)
@@ -642,8 +654,9 @@ public sealed class SboxService : IAsyncDisposable
         var envelope = new ServerEnvelope(
             "leave-room-resp",
             false,
-            JsonSerializer.Serialize(new { Comment = reason }, _serializerOptions));
+            JsonSerializer.Serialize(new LeaveRoomResponsePayload(roomName, true, comment), _serializerOptions));
 
+        _stateStore.AddLog(LogLevel.Information, "Server", $"Leave response sent for {roomName}");
         return SendJsonAsync(socket, envelope, CancellationToken.None);
     }
 
