@@ -64,6 +64,13 @@ public sealed class SboxService : IAsyncDisposable
 
             await StartBotGatewayAsync(_activeConfiguration, _runCts.Token);
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SBOX failed to start");
+            _stateStore.AddLog(LogLevel.Error, "Runtime", $"Failed to start: {ex.Message}");
+            await StopAsync();
+            throw;
+        }
         finally
         {
             _lifecycleGate.Release();
