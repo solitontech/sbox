@@ -152,13 +152,14 @@ public sealed class SboxService : IAsyncDisposable
 
     private void EnsurePortAvailable(string host, int port)
     {
+        TcpListener? listener = null;
         try
         {
             var address = string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
                 ? IPAddress.Loopback
                 : IPAddress.Parse(host);
 
-            using var listener = new TcpListener(address, port);
+            listener = new TcpListener(address, port);
             listener.Start();
         }
         catch (Exception ex)
@@ -167,6 +168,10 @@ public sealed class SboxService : IAsyncDisposable
             _logger.LogError(ex, "Bot gateway port unavailable: {Host}:{Port}", host, port);
             _stateStore.AddLog(LogLevel.Error, "Runtime", message);
             throw new InvalidOperationException(message, ex);
+        }
+        finally
+        {
+            listener?.Stop();
         }
     }
 
