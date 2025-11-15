@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 using Microsoft.Maui.Storage;
 using SBoxApp.Models;
@@ -57,6 +58,12 @@ public class SboxConfigurationStore
 
     private static string ResolveConfigDirectory()
     {
+        // Mac Catalyst/iOS apps must write inside their sandbox
+        if (OperatingSystem.IsMacCatalyst() || OperatingSystem.IsIOS())
+        {
+            return Path.Combine(FileSystem.AppDataDirectory, "Soliton", "SBox");
+        }
+
         var basePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         if (string.IsNullOrWhiteSpace(basePath))
         {
