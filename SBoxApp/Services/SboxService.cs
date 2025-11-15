@@ -35,8 +35,7 @@ public sealed class SboxService : IAsyncDisposable
     private Task? _engineListenerTask;
     private CancellationTokenSource? _engineListenerCts;
     private volatile bool _isShuttingDown;
-    private readonly object _botRecoveryGate = new();
-    private Task _botRecoveryTask = Task.CompletedTask;
+    private int _botRecoveryInProgress;
     private SboxConfiguration? _activeConfiguration;
     private string? _currentRoomName;
     private string? _currentGameName;
@@ -234,35 +233,30 @@ public sealed class SboxService : IAsyncDisposable
             return;
         }
 
-        bool shouldRestart = false;
-        lock (_botRecoveryGate)
-        {
-            if (_botRecoveryTask.IsCompleted)
-            {
-                _botRecoveryTask = Task.Run(RestartAfterBotDisconnectAsync);
-                shouldRestart = true;
-            }
-        }
-
-        if (!shouldRestart)
+        if (Interlocked.CompareExchange(ref _botRecoveryInProgress, 1, 0) != 0)
         {
             _stateStore.AddLog(LogLevel.Information, "Runtime", "Bot recovery already in progress");
+            return;
         }
-    }
 
-    private async Task RestartAfterBotDisconnectAsync()
-    {
-        _stateStore.AddLog(LogLevel.Information, "Runtime", "Restarting after bot disconnect");
-        try
+        _ = Task.Run(async () =>
         {
-            await RestartAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to restart after bot disconnect");
-            _stateStore.AddLog(LogLevel.Error, "Runtime", $"Restart failed: {ex.Message}");
-            _stateStore.UpdateServerState(ConnectionState.Offline, "Waiting for bot before registering");
-        }
+            _stateStore.AddLog(LogLevel.Information, "Runtime", "Restarting after bot disconnect");
+            try
+            {
+                await RestartAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to restart after bot disconnect");
+                _stateStore.AddLog(LogLevel.Error, "Runtime", $"Restart failed: {ex.Message}");
+                _stateStore.UpdateServerState(ConnectionState.Offline, "Waiting for bot before registering");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _botRecoveryInProgress, 0);
+            }
+        });
     }
 
     private Task StopBotGatewayAsync()
