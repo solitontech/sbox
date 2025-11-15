@@ -14,13 +14,13 @@ A cross‑platform (Windows + macOS) MAUI application for managing the SPL SBOX 
 You will receive two files:
 
 * `SBoxApp_1.0.0.0_x64.msix` (Windows installer)
-* `SolitonSBOX.cer` (signing certificate)
+* `SBoxApp_1.0.0.0_x64.cer` (signing certificate)
 
 1. Open **PowerShell as Administrator** and trust the signing certificate in both required stores:
-   ```powershell
-   certutil -addstore "TrustedPeople" .\dist\windows\SolitonSBOX.cer
-   certutil -addstore "Root"           .\dist\windows\SolitonSBOX.cer
-   ```
+```powershell
+certutil -addstore "TrustedPeople" .\dist\windows\SBoxApp_1.0.0.0_x64.cer
+certutil -addstore "Root"           .\dist\windows\SBoxApp_1.0.0.0_x64.cer
+```
 2. If you previously installed the app, remove it:
    ```powershell
    Get-AppxPackage *SBoxApp* | Remove-AppxPackage
@@ -33,11 +33,37 @@ You will receive two files:
 
 ## Installing on macOS
 
-You will receive a single `.pkg` installer (for example `SolitonSBOX-maccatalyst-x64.pkg`). Double-click it and follow the on-screen instructions. If macOS reports the package is from an unidentified developer:
+**Important:** We distribute the macOS app as source code or unsigned builds because network-server entitlements require an Apple Developer certificate. Please install dependencies and build/run locally.
 
-1. Right-click (or control-click) the `.pkg`.
-2. Select **Open** and confirm the warning dialog.
-3. The installer will now proceed normally.
+### Prerequisites
+
+1. Install Xcode (from the App Store) and command-line tools:
+   ```bash
+   sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+   sudo xcodebuild -runFirstLaunch
+   ```
+2. Install .NET 8 SDK (ARM64 or x64, depending on your Mac):
+   ```bash
+   brew install --cask dotnet-sdk@8
+   sudo ln -sfn /usr/local/share/dotnet/dotnet /usr/local/bin/dotnet
+   dotnet --list-sdks   # confirm 8.0.x is listed
+   ```
+3. Install MAUI workloads:
+   ```bash
+   sudo dotnet workload install maui maui-maccatalyst
+   dotnet workload list
+   ```
+
+### Build/Run the app
+
+Clone the repo and run:
+```bash
+git clone https://github.com/solitontech/sbox.git
+cd sbox
+dotnet build -t:Run -f net8.0-maccatalyst -r maccatalyst-arm64
+```
+This runs the MAUI app with development entitlements, so the bot gateway can bind to localhost ports.
+
 
 ## Configuring SBOX
 

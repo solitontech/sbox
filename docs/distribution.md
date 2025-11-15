@@ -71,27 +71,55 @@ Distribute the MSIX and CER. Testers must import the CER into both `Trusted Peop
 
 ### Prerequisites
 
-Must run on macOS (or macOS VM) with:
+Must run on macOS (or a macOS VM) with:
 
-1. Xcode + Command Line Tools (`xcode-select --install`).
-2. Full Xcode app (needed for codesign).
-3. .NET 8 SDK (`brew install --cask dotnet-sdk` or download from Microsoft).
-4. .NET MAUI workload (`dotnet workload install maui`).
-5. Optional: Apple Developer certificate if you plan to sign/notarize.
+1. Xcode and Command Line Tools:
+   ```bash
+   sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+   sudo xcodebuild -runFirstLaunch
+   ```
+2. .NET 8 SDK:
+   ```bash
+   brew install --cask dotnet-sdk@8
+   sudo ln -sfn /usr/local/share/dotnet/dotnet /usr/local/bin/dotnet
+   dotnet --list-sdks
+   ```
+3. MAUI workloads:
+   ```bash
+   sudo dotnet workload install maui maui-maccatalyst
+   dotnet workload list
+   ```
+4. If you plan to distribute a signed `.pkg`, you must have Apple Developer ID Application and Developer ID Installer certificates.
 
-The script checks for `dotnet`, Xcode tools, `codesign`, and the MAUI workload and exits with guidance if anything is missing.
+The script checks for `dotnet`, Xcode tools, `codesign`, and workloads, and exits with guidance if anything is missing.
 
 ### Publish Steps
 
-From repo root on macOS:
+From repo root:
 ```bash
-./scripts/publish-mac.sh
+chmod +x ./scripts/publish-mac.sh
+bash ./scripts/publish-mac.sh
 ```
 The script outputs:
-- `dist/mac/SolitonSBOX-maccatalyst-x64.zip` — zipped publish output.
-- `.pkg` installer copied from `SBoxApp/bin/Release/net8.0-maccatalyst/maccatalyst-x64/` into `dist/mac/`.
+- `dist/mac/SolitonSBOX-maccatalyst-x64.zip` (zipped publish).
+- `.pkg` installer copied from `SBoxApp/bin/Release/net8.0-maccatalyst/maccatalyst-x64/`.
 
-If you need to sign or notarize the `.pkg`, use Apple’s `codesign`/`productsign` commands before distribution.
+### Signing & Notarizing (optional)
+
+If you need a trusted `.pkg`, sign the app bundle and pkg:
+```bash
+codesign --force --deep --options runtime \
+  --entitlements Platforms/MacCatalyst/Entitlements.plist \
+  --sign "Developer ID Application: Your Company (TEAMID)" \
+  SBoxApp.app
+
+productbuild --component SBoxApp.app /Applications unsigned.pkg
+productsign --sign "Developer ID Installer: Your Company (TEAMID)" \
+  unsigned.pkg SBoxApp.pkg
+```
+Optionally notarize (`xcrun notarytool submit ...` then `xcrun stapler staple`).
+
+Without Developer ID certificates, distribute the source so users can build/run locally as described in the README; unsigned packages will not retain entitlements and may crash.
 
 ## Configuration Defaults
 
