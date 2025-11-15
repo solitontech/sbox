@@ -42,12 +42,39 @@ certutil -addstore "Root"           .\dist\windows\SBoxApp_1.0.0.0_x64.cer
    sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
    sudo xcodebuild -runFirstLaunch
    ```
-2. Install .NET 8 SDK (ARM64 or x64, depending on your Mac):
+2. Install .NET 8 SDK
+
+   ```bash
+   dotnet --version  # Skip cleanup if this already shows 8.0.x
+   ```
+
+   **If no .NET is installed**
+
    ```bash
    brew install --cask dotnet-sdk@8
    sudo ln -sfn /usr/local/share/dotnet/dotnet /usr/local/bin/dotnet
-   dotnet --list-sdks   # confirm 8.0.x is listed
    ```
+
+   **If other versions are present**
+
+   ```bash
+   pkill -f dotnet || true
+   sudo rm -rf /usr/local/share/dotnet ~/.dotnet ~/.nuget /Library/Frameworks/dotnet.framework /Library/Receipts/dotnet*
+   sudo rm -rf /private/var/db/receipts/com.microsoft.dotnet* /opt/homebrew/Cellar/dotnet* /opt/homebrew/Caskroom/dotnet*
+   brew uninstall --force --cask dotnet-sdk dotnet-sdk@8 dotnet-sdk@9 || true
+   brew cleanup -s || true
+   brew install --cask dotnet-sdk@8
+   ```
+
+   You can also download the official 8.0 installer from Microsoft if Homebrew is not available.
+
+   Verify:
+
+   ```bash
+   dotnet --version
+   dotnet --list-sdks
+   ```
+
 3. Install MAUI workloads:
    ```bash
    sudo dotnet workload install maui maui-maccatalyst
