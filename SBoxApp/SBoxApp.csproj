@@ -77,4 +77,19 @@
         <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.0" />
     </ItemGroup>
 
+    <!--
+        Workaround for macOS codesign failures on some machines:
+        /usr/bin/codesign: resource fork, Finder information, or similar detritus not allowed
+        We strip extended attributes (like com.apple.FinderInfo) from the app bundle
+        just before the MacCatalyst codesign step runs.
+    -->
+    <Target Name="StripMacCatalystExtendedAttributes"
+            BeforeTargets="_CodesignAppBundle"
+            Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst' and '$(AppBundleDir)' != ''">
+        <Message Text="Stripping extended attributes from '$(AppBundleDir)' (xattr -cr)"
+                 Importance="High" />
+        <Exec Command="xattr -cr &quot;$(AppBundleDir)&quot;"
+              ContinueOnError="true" />
+    </Target>
+
 </Project>
